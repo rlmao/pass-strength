@@ -1,0 +1,205 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>42度空间-基于规则评分的密码强度检测算法分析及实现-方案2</title>
+</head>
+<style>
+    .container > * {
+        width: 200px;
+    }
+    .bar {
+        margin: 5px 0 3px;
+        border: 2px solid #ccc;
+        overflow: hidden;
+    }
+    .bar > span {
+        display: block;
+        height: 20px;
+        width: 1%;
+        background-color: green;
+    }
+</style>
+<body>
+<div class="container">
+    <input id ="pwd" type="text" maxlength="32"  />
+    <div class="bar">
+        <span id="rate"></span>
+    </div>
+    <span id="score">0</span>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var pwd = document.getElementById("pwd");
+        var levels = {VERY_STRONG:"非常强",STRONG:"强",GOOD:"好",WEAK:"弱",VERY_WEAK:"非常弱"};
+        var isNum = function (c) {
+            return c >= 48 && c <= 57;
+        }
+        var isLower = function (c) {
+            return c >= 97 && c <= 122;
+        }
+        var isUpper = function (c) {
+            return c >= 65 && c <= 90;
+        }
+        var isSymbol = function (c) {
+            return !(isLower(c) || isUpper(c) || isNum(c));
+        }
+        var isLetter = function (c) {
+            return isLower(c) || isUpper(c);
+        }
+        var pass = { num:0, lower:0, upper:0,symbol:0,'MNS':0,rep:0,repC:0,consecutive:0,sequential :0, len:function () {
+            return this.num + this.lower + this.upper + this.symbol;
+        },require:function () {
+            var re = this.num > 0 ? 1 : 0;
+            re += this.lower > 0 ? 1 : 0;
+            re += this.upper > 0 ? 1 : 0;
+            re += this.symbol > 0 ? 1 : 0;
+            if(re >2 && this.len() >=8) {
+                return re+1;
+            } else {
+                return 0;
+            }
+        },score:function () {
+            var sum = 0;
+            sum += 4*this.len();
+            if(this.lower > 0) {
+                sum += 2*(this.len() - this.lower);
+            }
+            if(this.upper > 0) {
+                sum += 2*(this.len() - this.upper);
+            }
+            if(this.num != this.len()) {
+                sum += 4*this.num;
+            }
+            sum += 6*this.symbol;
+            sum += 2*this.MNS;
+            sum += 2*this.require();
+            if(this.len() == this.lower + this.upper) {
+                sum  -= this.len();
+            }
+            if(this.len() == this.num) {
+                sum -= this.num;
+            }
+            sum -= this.repC;
+            sum -= 2*this.consecutive;
+            sum -= 3*this.sequential;
+            sum = sum < 0 ? 0 :sum;
+            sum = sum > 100 ? 100 : sum;
+            return sum;
+        },level:function () {
+            var s = this.score();
+            if(s >= 80) {
+                return "VERY_STRONG";
+            } else if(s >= 60) {
+                return "STRONG";
+            } else if(s >= 40) {
+                return "GOOD";
+            } else if(s >= 20) {
+                return "WEAK";
+            } else {
+                return "VERY_WEAK";
+            }
+
+        },clear:function () {
+            this.num =0;
+            this.lower = 0;
+            this.upper = 0;
+            this.symbol = 0;
+            this.MNS = 0;
+            this.rep = 0;
+            this.repC = 0;
+            this.consecutive = 0;
+            this.sequential = 0;
+        }}
+        var initPass = function(val) {
+            pass.clear();
+            for(var i=0; i<val.length; i++) {
+                var c = val.charCodeAt(i);
+                if(isNum(c)) {
+                    pass.num++;
+                    if(i != 0 && i != val.length -1) {
+                        pass.MNS ++;
+                    }
+                    if(i >0 && isNum(val.charCodeAt(i-1))) {
+                        pass.consecutive ++;
+                    }
+                } else if(isLower(c)) {
+                    pass.lower++;
+                    if(i >0 && isLower(val.charCodeAt(i-1))) {
+                        pass.consecutive ++;
+                    }
+                } else if(isUpper(c)) {
+                    pass.upper++;
+                    if(i >0 && isUpper(val.charCodeAt(i-1))) {
+                        pass.consecutive ++;
+                    }
+                } else {
+                    pass.symbol++;
+                    if(i != 0 && i != val.length -1) {
+                        pass.MNS ++;
+                    }
+                }
+                var exists = false;
+                for (var j = 0; j < val.length; j++) {
+                    if (val[i] == val[j] && i != j) {
+                        exists = true;
+                        pass.repC += Math.abs(val.length / (j - i));
+                    }
+                }
+                if (exists) {
+                    pass.rep++;
+                    var unique = val.length - pass.rep;
+                    pass.repC = (unique) ? Math.ceil(pass.repC/unique) : Math.ceil(pass.repC);
+                }
+                if(i > 1) {
+                    var last1 = val.charCodeAt(i-1);
+                    var last2 = val.charCodeAt(i-2);
+                    if(isLetter(c)) {
+                        if(isLetter(last1) && isLetter(last2)) {
+                            var v = val.toLowerCase();
+                            var vi = v.charCodeAt(i);
+                            var vi1 = v.charCodeAt(i-1);
+                            var vi2 = v.charCodeAt(i-2);
+                            if((vi - vi1) ==(vi1 - vi2) && Math.abs(vi - vi1) == 1) {
+                                pass.sequential ++;
+                            }
+                        }
+                    } else if(isNum(c)) {
+                        if(isNum(last1) && isNum(last2)) {
+                            if((c - last1) ==(last1 - last2) && Math.abs(c-last1) == 1) {
+                                pass.sequential ++;
+                            }
+                        }
+                    } else {
+                        if(isSymbol(last1) && isSymbol(last2)) {
+                            if((c - last1) ==(last1 - last2) && Math.abs(c-last1) == 1) {
+                                pass.sequential ++;
+                            }
+                        }
+                    }
+                }
+            }
+            console.log("num="+pass.num);
+            console.log("lower="+pass.lower);
+            console.log("upper="+pass.upper);
+            console.log("symbol="+pass.symbol);
+            console.log("len="+pass.len());
+            console.log("MNS="+pass.MNS);
+            console.log("rep="+pass.rep);
+            console.log("repC="+pass.repC);
+            console.log("require="+pass.require());
+        }
+        var setScore = function () {
+            document.getElementById("score").innerHTML = "评分："+pass.score()+" 等级："+levels[pass.level()];
+            document.getElementById("rate").style.width = pass.score()+"%";
+        }
+        pwd.addEventListener("keyup",function () {
+            initPass(pwd.value);
+            setScore();
+        });
+    });
+</script>
+</body>
+</html>
