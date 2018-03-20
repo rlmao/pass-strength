@@ -1,0 +1,121 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>42度空间-基于规则评分的密码强度检测算法分析及实现-方案1</title>
+</head>
+<style>
+    .container > * {
+        width: 200px;
+    }
+    .bar {
+        margin: 5px 0 3px;
+        border: 2px solid #ccc;
+        overflow: hidden;
+    }
+    .bar > span {
+        display: block;
+        height: 20px;
+        width: 1%;
+        background-color: green;
+    }
+</style>
+<body>
+<div class="container">
+    <input id ="pwd" type="text" maxlength="32"  />
+    <div class="bar">
+        <span id="rate"></span>
+    </div>
+    <span id="score">0</span>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var pwd = document.getElementById("pwd");
+        var levels = {VERY_SECURE:"非常安全",SECURE:"安全",VERY_STRONG:"非常强",STRONG:"强",AVERAGE:"一般",WEAK:"弱",VERY_WEAK:"非常弱"};
+        var pass = { num:0, lower:0, upper:0,other:0, len:function () {
+            return this.num + this.lower + this.upper + this.other;
+        },score:function () {
+            var sum = 0;
+            if(this.len() >= 8) {
+                sum += 25;
+            } else if(this.len() > 4) {
+                sum += 10;
+            } else if(this.len() > 0) {
+                sum += 5;
+            }
+            if(this.lower > 0 && this.upper > 0) {
+                sum += 20;
+            } else if(this.lower > 0 || this.upper >0) {
+                sum + 10;
+            }
+            if(this.num >1) {
+                sum += 20;
+            } else if( this.num > 0) {
+                sum += 10;
+            }
+            if(this.other > 1) {
+                sum += 25;
+            } else if(this.other > 0) {
+                sum += 10;
+            }
+            if(this.num >0 && this.lower > 0 && this.upper > 0 && this.other > 0) {
+                sum += 5;
+            } else if(this.num > 0  && this.other > 0 && (this.lower > 0 || this.upper >0)) {
+                sum += 3;
+            } else if(this.num > 0 && (this.lower > 0 || this.upper >0)) {
+                sum += 2;
+            }
+            return sum;
+        },level:function () {
+            var s = this.score();
+            if(s >= 90) {
+                return "VERY_SECURE";
+            } else if(s >= 80) {
+                return "SECURE";
+            } else if(s >= 70) {
+                return "VERY_STRONG";
+            } else if(s >= 60) {
+                return "STRONG";
+            } else if(s >= 50) {
+                return "AVERAGE";
+            } else if(s >= 25) {
+                return "WEAK";
+            } else {
+                return "VERY_WEAK";
+            }
+
+        },clear:function () {
+            this.num =0;
+            this.lower = 0;
+            this.upper = 0;
+            this.other = 0;
+        }};
+        var initPass = function(val) {
+            pass.clear();
+            for(var i=0; i<val.length; i++) {
+                var c = val.charCodeAt(i);
+                if(c >= 48 && c <= 57) {
+                    pass.num++;
+                } else if(c >= 97 && c <= 122) {
+                    pass.lower++;
+                } else if(c >= 65 && c <= 90) {
+                    pass.upper++;
+                } else {
+                    pass.other++;
+                }
+            }
+        }
+        var setScore = function () {
+            document.getElementById("score").innerHTML = "评分："+pass.score()+" 等级："+levels[pass.level()];
+            document.getElementById("rate").style.width = pass.score()+"%";
+        }
+        pwd.addEventListener("keyup",function () {
+            initPass(pwd.value);
+            setScore();
+        });
+    });
+</script>
+</body>
+</html>
